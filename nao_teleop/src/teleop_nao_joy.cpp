@@ -40,7 +40,7 @@ namespace nao_teleop{
 TeleopNaoJoy::TeleopNaoJoy()
 : privateNh("~"), m_enabled(false),
   m_xAxis(3), m_yAxis(2), m_turnAxis(0), m_headYawAxis(4),	m_headPitchAxis(5),
-  m_crouchBtn(8), m_initPoseBtn(0), m_enableBtn(9), m_modifyHeadBtn(5),
+  m_crouchBtn(0), m_initPoseBtn(15), m_enableBtn(9), m_modifyHeadBtn(11),
   m_maxVx(1.0), m_maxVy(1.0), m_maxVw(0.5),
   m_maxHeadYaw(2.0943), m_maxHeadPitch(0.7853),
   m_bodyPoseTimeOut(5.0),
@@ -149,7 +149,22 @@ void TeleopNaoJoy::joyCallback(const Joy::ConstPtr& joy){
 
   if (m_enabled && buttonTriggered(m_initPoseBtn, joy) && m_bodyPoseClient.isServerConnected()){
     callBodyPoseClient("init");
+    ROS_INFO("going to init pose");
   }
+
+  /*if(m_enabled && buttonTriggered(m_stopWalkBtn, joy)){
+    // not yet inhibited: publish zero walk command before inhibiting joystick
+    m_motion.linear.x = 0.0;
+    m_motion.linear.y = 0.0;
+    m_motion.linear.z = 0.0;
+    m_motion.angular.x = 0.0;
+    m_motion.angular.y = 0.0;
+    m_motion.angular.z = 0.0;
+    naoqi_bridge_msgs::CmdVelService service_call;
+    service_call.request.twist = m_motion;
+    m_cmdVelClient.call(service_call);
+    ROS_INFO("-- stop walk asked");
+  }*/
 
   if (buttonTriggered(m_enableBtn, joy)){
     std_msgs::String string;
@@ -168,7 +183,6 @@ void TeleopNaoJoy::joyCallback(const Joy::ConstPtr& joy){
 
   }
 
-
   // directional commands
   // walking velocities and head movements
   if (!axisValid(m_xAxis, joy) ||  !axisValid(m_yAxis, joy) || !axisValid(m_turnAxis, joy)){
@@ -177,6 +191,7 @@ void TeleopNaoJoy::joyCallback(const Joy::ConstPtr& joy){
     ROS_WARN("Joystick message too short for Move or Turn axis!\n");
   } else{
     if (buttonPressed(m_modifyHeadBtn, joy)){
+      ROS_INFO_STREAM("moving the head");
       // move head
       m_headAngles.header.stamp = ros::Time::now();
       m_headAngles.relative = 1;
@@ -185,7 +200,7 @@ void TeleopNaoJoy::joyCallback(const Joy::ConstPtr& joy){
 
     } else {
       // stop head:
-      m_headAngles.joint_angles[0] = m_headAngles.joint_angles[1] = 0.0f;
+      //m_headAngles.joint_angles[0] = m_headAngles.joint_angles[1] = 0.0f;
       // move base:
       m_motion.linear.x = m_maxVx * std::max(std::min(joy->axes[m_xAxis], 1.0f), -1.0f);
       m_motion.linear.y = m_maxVy * std::max(std::min(joy->axes[m_yAxis], 1.0f), -1.0f);
@@ -271,7 +286,7 @@ void TeleopNaoJoy::pubMsg(){
       m_headPub.publish(m_headAngles);
       std::cout << "going to publish head angles" << std::endl;
     }
-    if (m_motion.linear.x != 0.0f || m_motion.linear.y != 0.0f || m_motion.angular.z != 0.0f)
+    //if (m_motion.linear.x != 0.0f || m_motion.linear.y != 0.0f || m_motion.angular.z != 0.0f)
     {
       m_movePub.publish(m_motion);
       std::cout << "going to publish motion commands" << std::endl;
